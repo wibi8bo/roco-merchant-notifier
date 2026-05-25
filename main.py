@@ -261,7 +261,7 @@ def push_all(title, body, markdown, image_url):
     
     if BARK_KEY:
         try:
-            requests.post(f"https://api.day.app/{BARK_KEY}", data={
+            requests.post(f"https://bark.wibi8bo.top/{BARK_KEY}", data={
                 "title": title, "body": body, "group": "洛克王国", "image": image_url, "isArchive": 1
             }, timeout=10)
             print("✅ Bark 推送已发送")
