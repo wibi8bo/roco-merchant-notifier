@@ -200,10 +200,11 @@ async def render_to_image(processed_data):
             
         async with async_playwright() as p:
             browser = await p.chromium.launch()
-            page = await browser.new_page()
-            
-            # 维持稳定的 900 宽度，完美规避手机端排版错乱
-            await page.set_viewport_size({"width": 900, "height": 1600})
+            context = await browser.new_context(
+                viewport={"width": 900, "height": 1600},
+                device_scale_factor=2
+            )
+            page = await context.new_page()
             await page.goto(f"file://{temp_html_path}")
             
             # 等待所有图文加载完毕
