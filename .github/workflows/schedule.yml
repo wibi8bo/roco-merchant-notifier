@@ -1,10 +1,10 @@
 name: Roco Merchant Notifier
 
 on:
-  schedule:
+  # schedule:
     # 北京时间 08:00, 12:00, 16:00, 20:00 执行
     # 对应 UTC 0:00, 4:00, 8:00, 12:00
-    - cron: '0 0,4,8,12 * * *'
+    # - cron: '0 0,4,8,12 * * *'
   workflow_dispatch: 
 
 jobs:
