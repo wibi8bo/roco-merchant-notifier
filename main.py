@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from jinja2 import Environment, FileSystemLoader
 from playwright.async_api import async_playwright
+from bs4 import BeautifulSoup
 
 # ================= 1. 配置区域 =================
 ROCOM_API_KEY = os.environ.get("ROCOM_API_KEY")
@@ -109,10 +110,26 @@ def fetch_wiki_description(item_name):
         }
         resp = requests.get(wiki_url, headers=headers, timeout=10)
         if resp.status_code == 200:
-            # 匹配 Markdown 格式的简介 **内容**（非贪婪匹配）
-            match = re.search(r'\*\*(.+?)\*\*', resp.text)
-            if match:
-                return match.group(1)
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            
+            # 和 React 项目相同的选择器顺序
+            selectors = [
+                '.mw-parser-output p b',
+                '.mw-parser-output b',
+                '.mw-parser-output p',
+                '.mw-parser-output div',
+                '#mw-content-text p',
+                '.rocom_item_page_info b'
+            ]
+            
+            for selector in selectors:
+                description = soup.select_one(selector)
+                if description:
+                    text = description.get_text(strip=True)
+                    if text:
+                        if len(text) > 100:
+                            text = text[:100] + '...'
+                        return text
     except Exception:
         pass
     return ""
