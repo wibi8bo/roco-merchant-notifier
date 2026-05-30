@@ -109,7 +109,8 @@ def fetch_wiki_description(item_name):
         }
         resp = requests.get(wiki_url, headers=headers, timeout=10)
         if resp.status_code == 200:
-            match = re.search(r'<b>([^<]{5,200})</b>', resp.text)
+            # 匹配 Markdown 格式的简介 **内容**（非贪婪匹配）
+            match = re.search(r'\*\*(.+?)\*\*', resp.text)
             if match:
                 return match.group(1)
     except Exception:
