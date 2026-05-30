@@ -1,0 +1,39 @@
+name: Roco Merchant Notifier
+
+on:
+  # schedule:
+    # 北京时间 08:00, 12:00, 16:00, 20:00 执行
+    # 对应 UTC 0:00, 4:00, 8:00, 12:00
+    # - cron: '0 0,4,8,12 * * *'
+  workflow_dispatch: 
+
+jobs:
+  run-notifier:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests playwright jinja2
+
+      - name: Install Playwright Browsers & OS Dependencies
+        run: |
+          playwright install chromium --with-deps
+          # 加上这行中文字体包作为双保险，防止你的本地字体偶尔加载失败
+          sudo apt-get install -y fonts-wqy-zenhei
+
+      - name: Run Notifier Script
+        env:
+          ROCOM_API_KEY: ${{ secrets.ROCOM_API_KEY }}
+          IMGBB_KEY: ${{ secrets.IMGBB_KEY }}
+          NOTIFYME_UUID: ${{ secrets.NOTIFYME_UUID }}
+          BARK_KEY: ${{ secrets.BARK_KEY }}
+        run: python main.py
