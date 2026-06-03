@@ -25,7 +25,7 @@ PRODUCT_NAME_MAPPING = {
 }
 
 # wiki 图片基础URL
-WIKI_IMAGE_BASE_URL = "https://wiki.lcx.cab/lk/images/"
+WIKI_IMAGE_BASE_URL = "https://wiki.lcx.cab/lk/"
 
 def get_full_image_url(icon_url):
     """将相对路径转换为完整的图片URL"""
@@ -491,7 +491,23 @@ async def render_to_image(processed_data):
         print("当前无活跃商品，跳过渲染")
         return None
     
-    screenshot_file = "merchant_render.jpg"
+    # 生成带时间和轮次的文件名，格式：20260603-0800-1.jpg
+    round_info = processed_data.get("round_info", {})
+    current_round = round_info.get("current", 1)
+    current_time_range = processed_data.get("current_time_range", "")
+    
+    # 提取开始时间（如 08:00-12:00 -> 0800）
+    time_str = ""
+    if current_time_range:
+        time_parts = current_time_range.split("-")
+        if len(time_parts) > 0:
+            time_str = time_parts[0].replace(":", "")
+    
+    # 获取当前日期
+    today = datetime.now().strftime("%Y%m%d")
+    
+    # 生成文件名（确保格式正确，无多余空格）
+    screenshot_file = f"{today}-{time_str.strip()}-{current_round}.jpg"
     temp_html_path = os.path.join(ASSETS_DIR, TEMP_RENDER_FILE)
     
     try:
@@ -515,15 +531,35 @@ async def render_to_image(processed_data):
             await page.evaluate("document.fonts.ready")
             await page.wait_for_load_state("networkidle")
             
-            # 额外等待图片加载完成（最多10秒）
+            # 额外等待图片加载完成（最多15秒）
             await page.wait_for_function(
                 """() => {
                     const imgs = document.querySelectorAll('img[src^="https://"]');
+                    console.log('Found', imgs.length, 'external images');
+                    imgs.forEach((img, i) => {
+                        console.log('Image', i, '- src:', img.src, '- complete:', img.complete, '- naturalWidth:', img.naturalWidth);
+                    });
                     if (imgs.length === 0) return true;
-                    return Array.from(imgs).every(img => img.complete);
+                    return Array.from(imgs).every(img => img.complete && img.naturalWidth > 0);
                 }""",
-                timeout=10000
+                timeout=15000
             )
+            
+            # 检查图片加载状态
+            img_statuses = await page.evaluate("""() => {
+                const imgs = document.querySelectorAll('img[src^="https://"]');
+                return Array.from(imgs).map(img => ({
+                    src: img.src,
+                    complete: img.complete,
+                    naturalWidth: img.naturalWidth,
+                    naturalHeight: img.naturalHeight
+                }));
+            }""")
+            print("\n📷 图片加载状态:")
+            for i, img in enumerate(img_statuses):
+                status = "✅" if img["complete"] and img["naturalWidth"] > 0 else "❌"
+                print(f"  {status} [{i}] {img['src']}")
+                print(f"     - complete: {img['complete']}, width: {img['naturalWidth']}, height: {img['naturalHeight']}")
             
             data_region = page.locator('.merchant-page')
             await data_region.screenshot(path=screenshot_file, type="jpeg", quality=90)
