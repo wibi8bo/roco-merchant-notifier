@@ -94,9 +94,9 @@ def fetch_merchant_data():
             "random_goods": []
         }
         
-        # 提取日期
+        # 提取日期（使用北京时间）
         date_element = merchant_content.find(class_='merchant-frame-header-date')
-        date_str = date_element.get_text(strip=True) if date_element else datetime.now().strftime("%Y-%m-%d")
+        date_str = date_element.get_text(strip=True) if date_element else get_beijing_time().strftime("%Y-%m-%d")
         
         # 提取当前轮次信息
         round_badge = merchant_content.find(class_='merchant-frame-badge-round')
@@ -130,7 +130,7 @@ def fetch_merchant_data():
             if countdown_element and 'data-end-time' in countdown_element.attrs:
                 end_time = int(countdown_element['data-end-time'])
             else:
-                end_time = int(datetime.now().timestamp() * 1000) + 4 * 3600 * 1000
+                end_time = int(get_beijing_time().timestamp() * 1000) + 4 * 3600 * 1000
             
             # 处理图片URL
             icon_url = get_full_image_url(icon_url)
