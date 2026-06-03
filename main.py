@@ -516,8 +516,8 @@ async def render_to_image(processed_data):
     round_info = processed_data.get("round_info", {})
     current_round = round_info.get("current", 1)
     
-    # 获取当前日期和生成时间（时分）
-    now = datetime.now()
+    # 获取当前日期和生成时间（使用北京时间 UTC+8）
+    now = datetime.now(timezone(timedelta(hours=8)))  # 北京时间
     today = now.strftime("%Y%m%d")
     time_str = now.strftime("%H%M")  # 生成图片的当前时间（时分）
     
