@@ -89,12 +89,6 @@ def fetch_merchant_data():
         if not merchant_content:
             raise ValueError("未找到 merchant-info-content")
         
-        # ========== 调试日志：爬取完成 ==========
-        print(f"\n{'='*60}")
-        print(f"[DEBUG] 爬取完成 - 北京时间: {get_beijing_time().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"[DEBUG] UTC时间: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"{'='*60}\n")
-        
         result = {
             "merchantActivities": [],
             "random_goods": []
@@ -150,19 +144,6 @@ def fetch_merchant_data():
                     'time_range': time_range,
                     'round': current_round
                 })
-        
-        # ========== 调试日志：爬取到的商品列表 ==========
-        print(f"[DEBUG] 爬取到 {len(current_products)} 个商品:")
-        for idx, prod in enumerate(current_products):
-            start_ts = prod.get('start_time')
-            end_ts = prod.get('end_time')
-            start_time_fmt = format_timestamp(start_ts) if start_ts else '--:--'
-            end_time_fmt = format_timestamp(end_ts) if end_ts else '--:--'
-            print(f"  [{idx}] {prod['name']}")
-            print(f"      原始时间范围: {prod['time_range']}")
-            print(f"      转换后时间: {start_time_fmt} - {end_time_fmt}")
-            print(f"      时间戳: start={start_ts}, end={end_ts}")
-            print()
         
         # 提取已结束轮次的商品
         ended_rounds = merchant_content.select('.merchant-frame-ended-round')
@@ -365,12 +346,6 @@ def fetch_descriptions(item_names):
 def process_data_for_template(data):
     if not data: return {}
     
-    # ========== 调试日志：处理数据开始 ==========
-    print(f"\n{'='*60}")
-    print(f"[DEBUG] 开始处理数据 - 北京时间: {get_beijing_time().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"[DEBUG] 当前时间戳(ms): {int(get_beijing_time().timestamp() * 1000)}")
-    print(f"{'='*60}\n")
-    
     now_ms = int(get_beijing_time().timestamp() * 1000)
     round_info = get_round_info()
     
@@ -441,14 +416,6 @@ def process_data_for_template(data):
                 "buy_limit_num": item.get("buy_limit_num") if item.get("buy_limit_num") not in (None, "") else goods_meta.get("buy_limit_num")
             }
             
-            # ========== 调试日志：商品分类 ==========
-            print(f"[DEBUG] 商品: {product['name']}")
-            print(f"        时间: {time_label}")
-            print(f"        时间戳范围: {start_ms} - {end_ms}")
-            print(f"        当前时间戳: {now_ms}")
-            print(f"        判断结果: is_active={is_active}, status={status_label}")
-            print()
-            
             all_products.append(product)
             if is_active:
                 active_products.append(product)
@@ -478,20 +445,7 @@ def process_data_for_template(data):
         # 每段最多展示5个不重复商品
         if product["name"] not in names and len(group["products"]) < 5:
             group["products"].append(product)
-    
-    # ========== 调试日志：分类结果汇总 ==========
-    print(f"\n{'='*60}")
-    print(f"[DEBUG] 分类结果汇总:")
-    print(f"  当前轮次商品 ({len(active_products)}个):")
-    for prod in active_products:
-        print(f"    - {prod['name']} ({prod['time_label']})")
-    print(f"  历史记录分组 ({len(grouped)}个时段):")
-    for key, group in sorted(grouped.items(), key=lambda x: x[1]['sort'], reverse=True):
-        print(f"    [{group['time_label']}] {group['status_label']}:")
-        for prod in group['products']:
-            print(f"      - {prod['name']}")
-    print(f"{'='*60}\n")
-
+  
     history_groups = [
         {k: v for k, v in g.items() if k != "sort"}
         for g in sorted(grouped.values(), key=lambda x: x["sort"])
@@ -607,21 +561,8 @@ async def render_to_image(processed_data):
                 timeout=15000
             )
             
-            # 检查图片加载状态
-            img_statuses = await page.evaluate("""() => {
-                const imgs = document.querySelectorAll('img[src^="https://"]');
-                return Array.from(imgs).map(img => ({
-                    src: img.src,
-                    complete: img.complete,
-                    naturalWidth: img.naturalWidth,
-                    naturalHeight: img.naturalHeight
-                }));
-            }""")
-            print("\n📷 图片加载状态:")
-            for i, img in enumerate(img_statuses):
-                status = "✅" if img["complete"] and img["naturalWidth"] > 0 else "❌"
-                print(f"  {status} [{i}] {img['src']}")
-                print(f"     - complete: {img['complete']}, width: {img['naturalWidth']}, height: {img['naturalHeight']}")
+            # 等待图片加载完成
+            await page.wait_for_selector('img[src^="https://"]', state='attached', timeout=10000)
             
             data_region = page.locator('.merchant-page')
             await data_region.screenshot(path=screenshot_file, type="jpeg", quality=90)
