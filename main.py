@@ -512,23 +512,17 @@ async def render_to_image(processed_data):
         print("当前无活跃商品，跳过渲染")
         return None
     
-    # 生成带时间和轮次的文件名，格式：20260603-0800-1.jpg
+    # 生成带时间和轮次的文件名，格式：20260603-1630-3.jpg（日期-生成时间-轮次）
     round_info = processed_data.get("round_info", {})
     current_round = round_info.get("current", 1)
-    current_time_range = processed_data.get("current_time_range", "")
     
-    # 提取开始时间（如 08:00-12:00 -> 0800）
-    time_str = ""
-    if current_time_range:
-        time_parts = current_time_range.split("-")
-        if len(time_parts) > 0:
-            time_str = time_parts[0].replace(":", "")
+    # 获取当前日期和生成时间（时分）
+    now = datetime.now()
+    today = now.strftime("%Y%m%d")
+    time_str = now.strftime("%H%M")  # 生成图片的当前时间（时分）
     
-    # 获取当前日期
-    today = datetime.now().strftime("%Y%m%d")
-    
-    # 生成文件名（确保格式正确，无多余空格）
-    screenshot_file = f"{today}-{time_str.strip()}-{current_round}.jpg"
+    # 生成文件名
+    screenshot_file = f"{today}-{time_str}-{current_round}.jpg"
     temp_html_path = os.path.join(ASSETS_DIR, TEMP_RENDER_FILE)
     
     try:
