@@ -117,7 +117,7 @@ def fetch_merchant_data():
             if name:
                 current_products.append({
                     'name': name,
-                    'icon_url': icon_url,
+                    'image': icon_url,
                     'start_time': end_time - 4 * 3600 * 1000,
                     'end_time': end_time,
                     'time_range': time_range,
@@ -169,7 +169,7 @@ def fetch_merchant_data():
                 if name:
                     ended_products.append({
                         'name': name,
-                        'icon_url': icon_url,
+                        'image': icon_url,
                         'start_time': round_start_ms,
                         'end_time': round_end_ms,
                         'is_ended': True,
@@ -384,7 +384,7 @@ def process_data_for_template(data):
 
             product = {
                 "name": item.get("name", "未知商品"),
-                "image": item.get("icon_url", ""),
+                "image": item.get("image", ""),
                 "time_label": time_label,
                 "start_ms": start_ms,
                 "end_ms": end_ms,
@@ -514,6 +514,16 @@ async def render_to_image(processed_data):
             # 等待所有图文加载完毕
             await page.evaluate("document.fonts.ready")
             await page.wait_for_load_state("networkidle")
+            
+            # 额外等待图片加载完成（最多10秒）
+            await page.wait_for_function(
+                """() => {
+                    const imgs = document.querySelectorAll('img[src^="https://"]');
+                    if (imgs.length === 0) return true;
+                    return Array.from(imgs).every(img => img.complete);
+                }""",
+                timeout=10000
+            )
             
             data_region = page.locator('.merchant-page')
             await data_region.screenshot(path=screenshot_file, type="jpeg", quality=90)
