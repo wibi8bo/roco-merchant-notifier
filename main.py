@@ -8,20 +8,172 @@ from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 
 # ================= 1. 配置区域 =================
-ROCOM_API_KEY = os.environ.get("ROCOM_API_KEY")
 IMGBB_KEY = os.environ.get("IMGBB_KEY")
 NOTIFYME_UUID = os.environ.get("NOTIFYME_UUID")
 BARK_KEY = os.environ.get("BARK_KEY")
 
-GAME_API_URL = "https://wegame.shallow.ink/api/v1/games/rocom/merchant/info"
+# 新数据源
+WIKI_URL = "https://wiki.lcx.cab/lk/index.php"
 NOTIFYME_SERVER = "https://notifyme-server.wzn556.top/api/send"
 ASSETS_DIR = os.path.abspath("assets/yuanxing-shangren")
 HTML_TEMPLATE_FILE = "index.html"
 TEMP_RENDER_FILE = "temp_render.html"
 
+# 商品名称映射表
+PRODUCT_NAME_MAPPING = {
+    '炫彩蛋': '炫彩精灵蛋'
+}
+
 
 
 # ================= 2. 时间与数据处理逻辑 =================
+
+def get_normalized_product_name(original_name):
+    """获取规范后的商品名称"""
+    return PRODUCT_NAME_MAPPING.get(original_name, original_name)
+
+def fetch_merchant_data():
+    """从 wiki 爬取远行商人数据"""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+    }
+    
+    try:
+        resp = requests.get(WIKI_URL, headers=headers, timeout=30)
+        resp.raise_for_status()
+        html = resp.text
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        merchant_content = soup.find(id='merchant-info-content')
+        if not merchant_content:
+            raise ValueError("未找到 merchant-info-content")
+        
+        result = {
+            "merchantActivities": [],
+            "random_goods": []
+        }
+        
+        # 提取日期
+        date_element = merchant_content.find(class_='merchant-frame-header-date')
+        date_str = date_element.get_text(strip=True) if date_element else datetime.now().strftime("%Y-%m-%d")
+        
+        # 提取当前轮次信息
+        round_badge = merchant_content.find(class_='merchant-frame-badge-round')
+        current_round = 1
+        if round_badge:
+            match = re.search(r'第\s*(\d+)\s*/', round_badge.get_text(strip=True))
+            if match:
+                current_round = int(match.group(1))
+        
+        # 提取当前商品列表
+        product_items = merchant_content.select('.merchant-frame-product-item')
+        current_products = []
+        
+        for item in product_items:
+            name_element = item.find(class_='merchant-frame-product-name')
+            time_element = item.find(class_='merchant-frame-product-time')
+            countdown_element = item.find(class_='merchant-frame-product-countdown')
+            image_element = item.find(class_='merchant-frame-product-image')
+            
+            if image_element:
+                img_tag = image_element.find('img')
+                icon_url = img_tag['src'] if img_tag else ''
+            else:
+                icon_url = ''
+            
+            original_name = name_element.get_text(strip=True) if name_element else ''
+            name = get_normalized_product_name(original_name)
+            time_range = time_element.get_text(strip=True).replace('\u00A0', ' ') if time_element else ''
+            
+            end_time = None
+            if countdown_element and 'data-end-time' in countdown_element.attrs:
+                end_time = int(countdown_element['data-end-time'])
+            else:
+                end_time = int(datetime.now().timestamp() * 1000) + 4 * 3600 * 1000
+            
+            if name:
+                current_products.append({
+                    'name': name,
+                    'icon_url': icon_url,
+                    'start_time': end_time - 4 * 3600 * 1000,
+                    'end_time': end_time,
+                    'time_range': time_range,
+                    'round': current_round
+                })
+        
+        # 提取已结束轮次的商品
+        ended_rounds = merchant_content.select('.merchant-frame-ended-round')
+        ended_products = []
+        
+        for round_elem in ended_rounds:
+            round_title_element = round_elem.find(class_='merchant-frame-ended-round-title')
+            round_title = round_title_element.get_text(strip=True) if round_title_element else ''
+            
+            round_match = re.search(r'第\s*(\d+)\s*轮', round_title)
+            round_num = int(round_match.group(1)) if round_match else 1
+            
+            # 计算该轮次的时间
+            round_start_times = {
+                1: {'hour': 8, 'label': '08:00-12:00'},
+                2: {'hour': 12, 'label': '12:00-16:00'},
+                3: {'hour': 16, 'label': '16:00-20:00'},
+                4: {'hour': 20, 'label': '20:00-24:00'}
+            }
+            round_time = round_start_times.get(round_num, {'hour': 8, 'label': '08:00-12:00'})
+            
+            now = datetime.now()
+            round_start = datetime(now.year, now.month, now.day, round_time['hour'], 0, 0)
+            round_start_ms = int(round_start.timestamp() * 1000)
+            round_end_ms = round_start_ms + 4 * 3600 * 1000
+            
+            products = round_elem.select('.merchant-frame-ended-product')
+            for product in products:
+                name_element = product.find(class_='merchant-frame-ended-product-name')
+                image_element = product.find(class_='merchant-frame-ended-product-image')
+                
+                if image_element:
+                    img_tag = image_element.find('img')
+                    icon_url = img_tag['src'] if img_tag else ''
+                else:
+                    icon_url = ''
+                
+                original_name = name_element.get_text(strip=True) if name_element else ''
+                name = get_normalized_product_name(original_name)
+                
+                if name:
+                    ended_products.append({
+                        'name': name,
+                        'icon_url': icon_url,
+                        'start_time': round_start_ms,
+                        'end_time': round_end_ms,
+                        'is_ended': True,
+                        'round': round_num,
+                        'time_range': round_time['label']
+                    })
+        
+        # 构建 merchantActivities
+        all_products = current_products + ended_products
+        
+        if all_products:
+            result['merchantActivities'] = [{
+                '_id': 'scraped_from_wiki',
+                'name': '远行商人',
+                'description': '来自远方的神秘商人，带来了珍贵的商品',
+                'start_date': date_str,
+                'start_time': all_products[0]['start_time'],
+                'end_time': max(p['end_time'] for p in all_products),
+                'get_props': all_products,
+                'get_extra_props': [],
+                'get_pets': []
+            }]
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ 爬取数据失败: {e}")
+        return None
 
 def get_beijing_time():
     """获取精准的北京时间"""
@@ -399,16 +551,11 @@ def push_all(title, body, markdown, image_url):
 # ================= 5. 主入口 =================
 
 async def main():
-    try:
-        resp = requests.get(GAME_API_URL, headers={"X-API-Key": ROCOM_API_KEY}, timeout=30)
-        resp.raise_for_status()
-        raw_data = resp.json().get("data", {})
-        err = None if resp.json().get("code") == 0 else resp.json().get("message")
-    except Exception as e:
-        raw_data, err = None, f"请求异常: {e}"
+    # 使用新的 wiki 数据源
+    raw_data = fetch_merchant_data()
     
-    if err or not raw_data:
-        push_all("⚠️ 监控异常", err or "无法获取数据", "无法获取数据", None)
+    if not raw_data:
+        push_all("⚠️ 监控异常", "无法获取数据", "无法获取数据", None)
         return
 
     processed = process_data_for_template(raw_data)
