@@ -184,8 +184,9 @@ def fetch_merchant_data():
             }
             round_time = round_start_times.get(round_num, {'hour': 8, 'label': '08:00-12:00'})
             
-            now = datetime.now()
-            round_start = datetime(now.year, now.month, now.day, round_time['hour'], 0, 0)
+            # 使用北京时间计算轮次时间
+            now = get_beijing_time()
+            round_start = datetime(now.year, now.month, now.day, round_time['hour'], 0, 0, tzinfo=timezone(timedelta(hours=8)))
             round_start_ms = int(round_start.timestamp() * 1000)
             round_end_ms = round_start_ms + 4 * 3600 * 1000
             
