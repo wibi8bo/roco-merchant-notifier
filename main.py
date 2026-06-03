@@ -378,22 +378,22 @@ def process_data_for_template(data):
             s_time = item.get("start_time")
             e_time = item.get("end_time")
 
-            # 兜底继承大活动时间
-            if s_time is None: s_time = activity.get("start_time")
-            if e_time is None: e_time = activity.get("end_time")
-
+            # 不使用活动级别的兜底时间，使用商品自己的时间
             start_ms = int(s_time) if s_time else None
             end_ms = int(e_time) if e_time else None
 
-            is_active = True
+            is_active = False
             if start_ms is not None and end_ms is not None:
                 is_active = start_ms <= now_ms < end_ms
 
-            status_label = "当前轮次"
-            if start_ms is not None and now_ms < start_ms:
-                status_label = "未开始"
-            elif end_ms is not None and now_ms >= end_ms:
-                status_label = "已结束"
+            status_label = "未知"
+            if start_ms is not None and end_ms is not None:
+                if now_ms < start_ms:
+                    status_label = "未开始"
+                elif now_ms >= end_ms:
+                    status_label = "已结束"
+                else:
+                    status_label = "当前轮次"
 
             # 时间标签格式化
             start_str = format_timestamp(start_ms)
