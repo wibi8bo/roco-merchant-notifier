@@ -24,6 +24,24 @@ PRODUCT_NAME_MAPPING = {
     '炫彩蛋': '炫彩精灵蛋'
 }
 
+# wiki 图片基础URL
+WIKI_IMAGE_BASE_URL = "https://wiki.lcx.cab/lk/images/"
+
+def get_full_image_url(icon_url):
+    """将相对路径转换为完整的图片URL"""
+    if not icon_url:
+        return ""
+    
+    # 如果已经是完整URL，直接返回
+    if icon_url.startswith('http://') or icon_url.startswith('https://'):
+        return icon_url
+    
+    # 如果是相对路径，添加基础URL
+    if icon_url.startswith('/'):
+        return "https://wiki.lcx.cab" + icon_url
+    else:
+        return WIKI_IMAGE_BASE_URL + icon_url
+
 
 
 # ================= 2. 时间与数据处理逻辑 =================
@@ -93,6 +111,9 @@ def fetch_merchant_data():
             else:
                 end_time = int(datetime.now().timestamp() * 1000) + 4 * 3600 * 1000
             
+            # 处理图片URL
+            icon_url = get_full_image_url(icon_url)
+            
             if name:
                 current_products.append({
                     'name': name,
@@ -141,6 +162,9 @@ def fetch_merchant_data():
                 
                 original_name = name_element.get_text(strip=True) if name_element else ''
                 name = get_normalized_product_name(original_name)
+                
+                # 处理图片URL
+                icon_url = get_full_image_url(icon_url)
                 
                 if name:
                     ended_products.append({
