@@ -131,16 +131,62 @@ def fetch_merchant_data():
                 end_time = int(countdown_element['data-end-time'])
             else:
                 end_time = int(get_beijing_time().timestamp() * 1000) + 4 * 3600 * 1000
-            
+
+            # 根据 time_range 解析实际持续时间（热销商品16小时，轮次商品4小时）
+            duration_ms = 4 * 3600 * 1000  # 默认4小时
+            start_h, start_m, end_h, end_m = None, None, None, None
+
+            if time_range:
+                # 解析形如 "08:00 - 00:00" 或 "12:00 - 16:00" 的时间范围
+                time_match = re.search(r'(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})', time_range)
+                if time_match:
+                    start_h, start_m, end_h, end_m = map(int, time_match.groups())
+                    # 计算小时差
+                    start_total = start_h * 60 + start_m
+                    end_total = end_h * 60 + end_m
+                    # 处理跨天情况（如 00:00 表示第二天的 0 点，即 24:00）
+                    if end_total <= start_total:
+                        end_total += 24 * 60
+                    duration_minutes = end_total - start_total
+                    duration_ms = duration_minutes * 60 * 1000
+
             # 处理图片URL
             icon_url = get_full_image_url(icon_url)
-            
+
+            # 对于热销商品（持续时间>4小时），需要根据 data-end-time 和 time_range 反推开始时间
+            # 因为 time_range 只是每天的售卖时间段（如 08:00-00:00），不是总售卖时长
+            if duration_ms > 4 * 3600 * 1000 and end_time and start_h is not None:
+                # 热销商品：从 data-end-time 往前推，找到匹配 time_range 的开始时间
+                # 例如：end_time = 2026-06-08 00:00, time_range = 08:00-00:00
+                # 则开始时间应该是 2026-06-05 08:00（往前推3天）
+                end_dt = datetime.fromtimestamp(end_time / 1000, tz=timezone(timedelta(hours=8)))
+                now_dt = get_beijing_time()
+
+                # 从结束时间往前推，找到匹配 time_range 的开始时间
+                start_dt = end_dt
+                while True:
+                    if start_dt.hour == start_h and start_dt.minute == start_m:
+                        break
+                    start_dt -= timedelta(hours=1)
+
+                # 如果找到的开始时间在当前时间之后，说明商品还没开始售卖
+                # 这可能是因为热销商品跨多天售卖，需要继续往前推
+                while start_dt > now_dt:
+                    start_dt -= timedelta(days=1)
+
+                start_time_ms = int(start_dt.timestamp() * 1000)
+                end_time_ms = end_time
+            else:
+                # 轮次商品：使用 data-end-time
+                start_time_ms = end_time - duration_ms
+                end_time_ms = end_time
+
             if name:
                 current_products.append({
                     'name': name,
                     'image': icon_url,
-                    'start_time': end_time - 4 * 3600 * 1000,
-                    'end_time': end_time,
+                    'start_time': start_time_ms,
+                    'end_time': end_time_ms,
                     'time_range': time_range,
                     'round': current_round
                 })
