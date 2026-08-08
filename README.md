@@ -23,20 +23,18 @@
 #### 1. Fork 仓库或创建新仓库
 点击页面右上角的 `Fork` 按钮，将本项目复制到你的账号下；或者直接新建一个私有/公开仓库，并上传 `main.py`。
 
-#### 2. 申请 API Key
-本项目的数据源由 [Entropy-Increase-Team](https://github.com/Entropy-Increase-Team/) 提供。
-你需要前往该项目主页或相关社区，获取用于调用 WeGame 接口的 `ROCOM_API_KEY`。
+#### 2. 数据源说明
+本项目数据来源于 [18183 远行商人助手](https://db.18183.com/lkwgyxsr/index.html)，为公开可访问的静态数据缓存，**无需申请任何 API Key**。
 
-测试key：sk-ff14f964051a5c966564e29b5bd3a768
+数据地址：`https://db.18183.com/lkwgyxsr/outputs/goods-cache.js`
 
-项目主页：[Entropy-Increase-Team/astrbot_plugin_rocom](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom)
+该数据源原生提供商品名称、价格、限购数量、商品简介、图标以及轮次（batch）字段，无需额外抓取其他站点。
 
 #### 3. 配置 GitHub Secrets (核心步骤)
-进入你的 GitHub 仓库 -> `Settings` -> `Secrets and variables` -> `Actions`，点击 `New repository secret`，依次添加以下 **4 个环境变量**：
+进入你的 GitHub 仓库 -> `Settings` -> `Secrets and variables` -> `Actions`，点击 `New repository secret`，依次添加以下环境变量：
 
 | Secret 名称 | 必填 | 说明 | 获取方式 |
 | :--- | :---: | :--- | :--- |
-| `ROCOM_API_KEY` | ✅ | 游戏数据接口访问凭证 | [社区网关](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom)提供 |
 | `IMGBB_KEY` | ✅ | 图床上传 API Key | 注册 [ImgBB](https://api.imgbb.com/) 获取 |
 | `BARK_KEY` | 选填 | iOS 推送 Key | Bark App 内复制 |
 | `NOTIFYME_UUID` | 选填 | Android 推送 UUID | NotifyMe App 内获取 |
@@ -79,10 +77,11 @@
 ---
 
 ### ⚖️ 免责声明
-本项目仅供学习交流使用，数据来源于第三方开源社区。作者对接口的稳定性不作保证，请勿用于商业用途。
+本项目仅供学习交流使用，数据来源于第三方公开站点。作者对数据源的稳定性不作保证，请勿用于商业用途。
 
 ---
 
 ## 🙏 鸣谢
 
-* 数据接口及原始前端 UI 模板设计来自：[Entropy-Increase-Team/astrbot_plugin_rocom](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom)
+* 商品数据来源：[18183 远行商人助手](https://db.18183.com/lkwgyxsr/index.html)
+* 原始前端 UI 模板设计参考：[Entropy-Increase-Team/astrbot_plugin_rocom](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom)
